@@ -34,8 +34,17 @@ Due to the QoS and the high spectrum cost, higher value applications that need g
 
 ### Battery lifetime
 Cellular communication systems are designed for optimal spectrum utilization, which compromises the end-node in terms of cost and battery lifetime. 
-
-In a cellular-based synchronous protocol, the end-device must check-in with the network periodically.
-For example, an average cell phone today has to synchronize with the network every 1.5 seconds even while out of use. In NB-IoT, synchronization happens less often but still regularly, which still consumes additional energy from the battery.
+In a cellular-based synchronous protocol, the end-device must check-in with the network periodically. For example, an average cell phone today has to synchronize with the network every 1.5 seconds even while out of use. In NB-IoT, synchronization happens less often but still regularly, which still consumes additional energy from the battery.
 
 While the modulation used in cellular networks is the most efficient to utilize the spectrum, it is not efficient from an end-device perspective. Cellular modulation (OFDM or FDMA) requires a linear transmitter to create the modulation, and a linear transmitter requires orders of magnitude more peak current than non-linear modulations, such as LoRa. These higher peak currents drain the battery faster and require expensive batteries to support them.
+
+The synchronous nature of a cellular network does create some advantages for
+applications that require short downlink latency. NB-IoT can also offer faster data rates to support applications that want high amounts of data throughput.
+For applications with very frequent communication and a very low latency
+requirement or large amounts of data, NB-IoT will be the best option.
+
+### Network coverage
+One of the advocated advantages of NB-IoT is that existing infrastructure can be upgraded to deliver the service; however, this upgrade is limited to certain 4G/LTE base stations and is expensive. While this strategy is viable for a dense city environment that has or will have 4G/LTE coverage—which is NB-IoT’s projected target area—It is not ideal for rural or suburban regions that do not or will not have 4G coverage. 
+
+### Device cost
+The modulation of NB-IoT and the protocol is more complex, which increases the silicon area and cost of the solution. NB-IoT, as well as 3GPP, has an issue with IP royalties. Today, a typical royalty for a cellular phone is five dollars, which is too expensive for IoT; however, lowering the royalty could cause price erosion in the cellular market royalties. For NB-IoT, upgrades to existing 4G LTE base stations can cost as much as $15,000 each.
