@@ -158,7 +158,6 @@ _Example transmition_
 * Receive downlink messages at specific time intervals
 * Consumes more energy than class A
 * Beaconing, the network syncs the time interval by sending beacons
-
 ##### How it works?
 When shifting from class A to class B, the device must first receive a network beacon and align its internal timing with the network server. Based on this, the end node can open receive windows or ping slots, which can be used by the network to initiate downlink communication.
 A network-initiated downlink message is called a ping. The gateway selected to initiate this downlink is selected by the network server based on signal strengths and quality of uplink messages.
@@ -173,7 +172,6 @@ Once a device is shifted to Class B operation, it must periodically send a beaco
 * Requires the antenna to always be powered on
 * Consumes most energy
 * Continuous listening 
-
 ##### How it works?
 Class C devices implement the same 2 receive windows as Class A devices, but they **do not close** the Rx2 until they need to send again.
 
@@ -189,7 +187,7 @@ The pricing often depends on the number of connected devices and the number of p
 
 As an alternative to these fee-based public networks, there are also networks, such as **The Things Network**, which are public, but not fee-based. The Things Network runs an open, crowdsourced LoRaWAN network. The network is maintained by thousands of people and organizations worldwide, all of which run one or more gateways to ensure network coverage. Everyone is free to add gateways and connect end devices to The Things Network.
 
-#### Public networks
+#### Private networks
 These networks can be created and maintained by individuals or companies. There are also companies that specialize in deploying and managing private networks.
 
 #### Choosing a Network Provider
@@ -214,13 +212,115 @@ Also, when rolling out a large number of end devices, it can be more cost effect
 
 The downside of private networks, however, is the associated overhead: gateways need to be installed and maintained. Additionally, the network server needs to be managed. Fortunately, there are third-party companies that specialize in this work.
 
+### Roaming
+#### Introduction to Roaming
+Roaming defines the mechanism of exchanging traffic between network servers, and there are a number of cases where roaming is advantageous. Roaming is good for extending network coverage. Indeed, even when a device is within range of gateways connected to its home network server, it may still be beneficial to enable roaming.
+
+Additionally, using a lower spreading factor and a higher data rate increases network capacity. The reason for this is that there is less noise and less channel use in this circumstance, leading to fewer packet collisions.
+Another benefit of having more gateways receive LoRaWAN packets is the increased geolocation accuracy. This is due to the fact that more metadata, such as timestamps and signal strength, is received thanks to the additional gateways.
+
+#### LoRaWAN Roaming Architecture
+There are three different roles the network server plays when a device is roaming. 
+
+![](\Images\Roaming_architecture.jpg)
+
+##### Home Network Server (hNS)
+An end device and its corresponding application are registered with its home network server. This network server is connected to a Join Server where the device's root keys are stored. It is also connected to the application server, which decrypts and encrypts the application data.
+##### Serving Network Server (sNS)
+The serving network server is used to activate end devices. It controls the MAC layer of the end device to define the RF parameters. It also validates integrity checks.
+##### Forwarding Network Server (fNS)
+The forwarding network server manages the gateways. It simply forwards and receives traffic to and from end devices.
+
+#### Types of roaming
+##### Passive Roaming
+In passive roaming, as illustrated below, an end device registered with Operator #1 sends a message via a gateway that is part of the network managed by Operator #2. The message is received by the fNS in Operator #2’s network. Presuming that Operators #1 and #2 have a roaming agreement in place, Operator #2 will pass the data packets from Operator #1’s end device to Operator #1’s sNS.
+
+![](\Images\Passive_roaming.jpg)
+
+When a network server is configured to enable passive roaming, it looks at the first seven bits of the **device address** (DevAddr) which is used as the **network identifier** (NwkID). The NwkID indicates the device’s hNS operator. If a roaming agreement is in place with the operator, the message is passed along. If no match is found, the message is dropped.
+##### Handover Roaming
+Only applies to devices on networks that follow the **LoRaWAN 1.1 specification**. This specification allows for transferring the MAC-layer control of a device to a different network server provider. This means that the sNS does not have to be operated by the same provider that runs the home network server (which is the case with passive roaming). With handover roaming, a _foreign_ network server can control the RF parameters such as the channel plan and Rx windows.
+
+![](\Images\Handover_roaming.jpg)
+
+### LoRaWAN specification
+Defines the standardized set of rules to be followed when using a LoRaWAN network. Introduced in 2015, the specification prescribes:
+* The standardized encryption format and the creation of the Message Integrity Code (MIC).
+* How a LoRaWAN message should be constructed, both for uplinks and downlinks, as is the case for the joining procedure.
+* The available MAC commands.
+* Describes the LoRaWAN devices classes (A, B and C), the receive window slots and much more.
+
+#### LoRaWAN 1.1
+##### Back-End interfaces
+A companion document, **LoRaWAN Back End Interfaces V1.0**, was released with LoRaWAN Specification 1.1. This supplemental document standardizes the functionality and message flow of the various network components and the communications among them. This makes it easier for different network providers to interconnect their networks, which is necessary for successful roaming.
+
+The document introduces a new component called the Join Server. The Join Server stores LoRaWAN root keys. Because interfaces and message flows are standardized, it is possible to let a third party run and manage this server for enhanced security. Because the Join Server runs independently of the Network Server and Application Server, end devices can rejoin different LoRaWAN Network Servers over time.
+
+##### Security Enhancements
+The LoRaWAN 1.0x specification requires a single, shared, secret key, the Application Key (AppKey). The AppKey is used to derive two session keys: the AppSKey and the NwkSKey.
+New in LoRaWAN 1.1 is the **Network Key** (NwkKey). This is a 128-bit key which is used to derive three session keys:
+1. **FNwkSIntKey** (_Forwarding Network Session Integrity Key_)
+* Used by an end device to calculate the MIC for all uplink messages
+2. **SNwkSIntKey** (_Serving Network Session Encryption Key_)
+* Used by an end device to verify the MIC for all downlink messages
+3. **NwkSEncKey** (_Network Session Encryption Key_)
+* Used for the encryption of MAC commands
+
+Another security enhancement relates to the frame counter. With LoRaWAN 1.1, the frame counter can never be reset during a session. This means, when using Authentication by Personalization (ABP), end devices require persistent memory to make sure the frame counter does not start from 0 after a power cycle.
+To avoid replay attacks, two nonces are introduced: 
+1. **DevNonce** - 
+* Counter which starts at 0 when the device is initially powered on. 
+* It initiates a join request. 
+* The nonce increments with every new join request the device sends.
+2. **JoinNonce**. 
+* Counter which also starts at 0. 
+* It increments every time a join request is accepted (when a join accept is sent by the Join Server). 
+* This mechanism prevents replay attacks whereby an attacker sends previously recorded join request messages with the intention of disconnecting the respective end device from the network.
+##### Join Procedure
+This component stores both of the root keys (NwkKey and AppKey). It also derives the session keys, which are sent to the corresponding Network Server and Application Server.
+Because the interface and message flow of all Network Server components is standardized, trusted third parties may operate Join Servers for the secure storage of keys.
+##### Roaming
+With LoRaWAN 1.1 devices can be controlled by a foreign network. When a roaming agreement is in place, a foreign Network Server can connect to the Join Server of the end device and take full control over the device.
+
+### Security
+LoRaWAN utilizes two layers of security: one for the network and one for the application.
+
+**Network layer** is responsible for:
+* Identification of the device
+* Integrity check
+* Network session integrity key
+* Network server encrypts MAC commands
+
+These commands change the data rate, enable or disable channels, change downlink frequencies, etc.
+
+**Application Layer** used for:
+* Encryption and decryption of application payload
+* Application session key
+* keys are 128 bit AES keys
+
+#### Device activation
+**ABP** - Activation by Personalisation
+* Session keys and the device address is programmed in the device
+
+**OTAA** - Over The Air Activation
+* More complicate but securest
+
+### LoRa Alliance
+An open, non-profit association of members that believe
+the IoT era is now. The Alliance’s mission is to standardize LPWA networks beingdeployed around the world to enable IoT, M2M, and industrial and consumer applications. 
+The Alliance members collaborate to drive the global success of the
+LoRaWAN™, by sharing knowledge and experience to guarantee interoperability between operators in one open global standard.
+
+A first and crucial step for the Alliance has been to define the initial release of **LoRaWAN™**, which is available on the website for any company who wants to benefit from an open standard.
+The Technical Committee of the Alliance is responsible for future enhancements drawing on inputs from all Committee Members to ensure the success of LoRaWAN™ in the IoT.
+
 [LPWA Technologies - Unlock New IoT Market Potential](https://lora-developers.semtech.com/uploads/static/LPWAN_technologies.pdf)
-### Spectrum, Quality of Service and Cost
+#### Spectrum, Quality of Service and Cost
 LoRaWAN™ uses free unlicensed spectrum and is an asynchronous protocol, which is optimal for battery lifetime and cost. 
 LoRa and the LoRaWAN protocol have unique features and were designed to handle interference, overlapping networks, and scalable capacity for very high volumes; however, they cannot offer the same **quality of service** (QoS) as a time slotted cellular protocol. 
 The low cost, high volume solutions prefer LoRa.
 
-### Battery lifetime
+#### Battery lifetime
 There are two important aspects to consider for battery lifetime: 
 * Both the end-device current consumption (peak and average)
 * The contribution of protocol.
@@ -230,22 +330,55 @@ LoRaWAN supports class B, which was designed to reduce the downlink communicatio
 
 For applications that need very long battery lifetime and optimized cost, but do not need to communicate as often, LoRa is a better option.
 
-### Network coverage
+#### Network coverage
 LoRa components and the LoRaWAN ecosystem are mature and production-ready
 now, while nationwide deployments are still in the rollout phase. One significant attribute of the LoRaWAN ecosystem is the components’ operability in the private or enterprise model as well as the public network model. Many large enterprises are planning a hybrid model that deploys a network in their facility and utilizes the public network for coverage outside of their facility.
 
-### Device cost
-There are no royalty issues to create margin stacking in the LoRa Alliance community so modules under four dollars are much more feasible in the LoRaWAN ecosystem. Certified LoRaWAN modules today are in the $7-10 range but are expected to reach the $4-5 as integration and volumes mature within the ecosystem. Alternatively, today cellular LTE modules struggle to
-get below $20.
+#### Device cost
+There are no royalty issues to create margin stacking in the LoRa Alliance community so modules under four dollars are much more feasible in the LoRaWAN ecosystem. Certified LoRaWAN modules today are in the $7 to 10 range but are expected to reach the $4 to 5 as integration and volumes mature within the ecosystem. Alternatively, today cellular LTE modules struggle to get below $20.
 For IoT and LPWAN, different deployment models will be used to lower the CapEx and OpEx costs of deployment compared to traditional deployment models solely based on towers. LoRaWAN deployments will cost much less, utilizing a mix of traditional towers, industrial gateways and in-home pico gateways. The price of tower top gateway is in the range of $1000, industrial gateways are less than $500 and low cost pico cell gateways are in the range of $100.
 
-## LoRa Alliance
-An open, non-profit association of members that believe
-the IoT era is now. The Alliance’s mission is to standardize LPWA networks beingdeployed around the world to enable IoT, M2M, and industrial and consumer applications. 
-The Alliance members collaborate to drive the global success of the
-LoRaWAN™, by sharing knowledge and experience to guarantee interoperability between operators in one open global standard.
+## Hardware
+### Hardware components
+1. Micro-controller unit
+* System on Chip
+* Manages device funcionalities
+* CPU and memory
+* Embedded applications of low-power devices
+* Low cost and small in size
+2. Power supply
+* Provided trough battery
+* solar panel
+3. Peripherals
+* Sensors / LCD screen / Relay switch / etc.
+* Communication protocols
+    * GPIO
+    * SPI
+    * I2C
+    * UART
+### Device software layer
+1. Application layer
+* Funcional application
+2. Middleware layer
+* communication protocol libraries - LoRaWAN stacks
+* Complex drivers
+3. Driver layer    
+* Manages peripherals
+### End devices
+#### (Low) Power Consumption of End Devices
+The key to the low power performance is to put a device into this deep sleep mode for over 99,9% of the time. This is the only way to make a small sized-battery last for one or multiple years.
+##### Wake up!
+Once a device is in deep sleep it can be woken up in two different ways. After a set time interval, or through an interrupt. If a sensor reading needs to be conducted periodically, the device can be programmed to wake up at a specific time intervals. Some sensors (not all) have the ability to wake up a device when it senses something. This is what we call an interrupt.
+##### Factors to take into consideration
+A device in deep sleep mode can last for years on a battery. The difference in energy consumption of a device in deep sleep mode, compared to the consumption of a device which sends data is about 3 orders of magnitude.
+* _Device is awake_ - The time a device is awake and senses its environment with sensors.
+* _Sending data_ - Sending data consumes a lot of energy. It can easily consume 1000 times more power compared to a device in deep sleep mode. Try to limit the number of messages sent and use the lowest Spreading Factor (SF) possible.
+* _Active radio_ - After a transmission, the LoRaWAN module listens for any incoming messages. This is done twice for a period of 1 second.
+* _Receiving data_ - Receiving data from gateways costs a lot of energy as well, but less than sending data. The transmission power of a Microchip module is 40mA, receiving data **only** consumes 14,2mA.
 
-A first and crucial step for the Alliance has been to define the initial release of **LoRaWAN™**, which is available on the website for any company who wants to benefit from an open standard.
-The Technical Committee of the Alliance is responsible for future enhancements drawing on inputs from all Committee Members to ensure the success of LoRaWAN™ in the IoT.
+##### Calculating battery life
+Batteries have a certain amount of energy they can store, indicated as MilliAmp Hour, abbreviated as mAh. The more mAh a battery contains, the longer a battery can last, this is (most of the times) correlated with the size of the battery itself. If the power a device consumes is known, as well as the capacity of the battery, the battery lifetime can be calculated using the simple formula:
 
-
+> Battery life (hours) = Battery Capacity (mAh) / Average current drain (mA)
+                        
+##### Antenna design
